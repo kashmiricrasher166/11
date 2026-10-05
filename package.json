@@ -1,0 +1,22 @@
+{
+  "name": "@kashmiri/file-utils",
+  "version": "1.0.0",
+  "description": "Small filesystem helper utilities.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "postinstall": "node scripts/setup.js"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "scripts",
+    "README.md"
+  ],
+  "keywords": ["files", "fs", "utils", "helpers"],
+  "author": "kashmiri",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}
