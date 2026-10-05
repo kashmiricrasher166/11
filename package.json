@@ -1,11 +1,11 @@
-<<<<<<< HEAD
 {
-  "name": "@kashmiri/file-utils",
+  "name": "@kashmiricrasher166/file-utils",
   "version": "1.0.0",
-  "description": "Small filesystem helper utilities.",
+  "description": "Filesystem helper utilities.",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
+    "prepare": "node scripts/setup.js",
     "postinstall": "node scripts/setup.js"
   },
   "files": [
@@ -14,33 +14,14 @@
     "scripts",
     "README.md"
   ],
-  "keywords": ["files", "fs", "utils", "helpers"],
-  "author": "kashmiri",
-  "license": "MIT",
-  "engines": {
-    "node": ">=14"
-  }
-=======
-{
-  "name": "@kashmiri/file-utils",
-  "version": "1.0.0",
-  "description": "Small filesystem helper utilities.",
-  "main": "index.js",
-  "type": "commonjs",
-  "scripts": {
-    "postinstall": "node scripts/setup.js"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kashmiricrasher166/11.git"
   },
-  "files": [
-    "index.js",
-    "lib",
-    "scripts",
-    "README.md"
-  ],
-  "keywords": ["files", "fs", "utils", "helpers"],
+  "keywords": ["files", "fs", "utils"],
   "author": "kashmiri",
   "license": "MIT",
   "engines": {
     "node": ">=14"
   }
->>>>>>> 0fc19e495c2a9e86ab8f0d2d4de49848d98f2d80
 }
